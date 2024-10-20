@@ -9,8 +9,10 @@ import { onSnapshot, addDoc, deleteDoc, doc, setDoc } from "firebase/firestore";
 export default function App() {
   const [notes, setNotes] = React.useState(() => JSON.parse(localStorage.getItem("notes")) || []);
   const [currentNoteId, setCurrentNoteId] = React.useState(notes[0]?.id || "");
+  const [tempNoteText, setTempNoteText] = React.useState("");
 
   const currentNote = notes.find((note) => note.id === currentNoteId) || notes[0];
+  const sortedNotes = notes.sort((a, b) => b.updatedAt - a.updatedAt);
 
   React.useEffect(() => {
     // localStorage.setItem("notes", JSON.stringify(notes));
@@ -21,12 +23,25 @@ export default function App() {
         id: doc.id,
       }));
       setNotes(notesArr);
-
+      console.log("Something changed.");
       return unsubscribe;
     });
   }, []);
 
-  const sortedNotes = notes.sort((a, b) => b.updatedAt - a.updatedAt);
+  React.useEffect(() => {
+    if (currentNote) {
+      setTempNoteText(currentNote.body);
+    }
+  }, [currentNote]);
+
+  React.useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (tempNoteText !== currentNote.body) {
+        updateNote(tempNoteText);
+      }
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [tempNoteText]);
 
   async function createNewNote() {
     const newNote = {
@@ -52,14 +67,12 @@ export default function App() {
     await deleteDoc(docRef);
   }
 
-  console.log(currentNote, updateNote);
-
   return (
     <main>
       {notes.length > 0 ? (
         <Split sizes={[30, 70]} direction="horizontal" className="split">
           <Sidebar notes={sortedNotes} currentNote={currentNote} setCurrentNoteId={setCurrentNoteId} newNote={createNewNote} deleteNote={deleteNote} />
-          {currentNoteId && notes.length > 0 && <Editor currentNote={currentNote} updateNote={updateNote} />}
+          {currentNoteId && notes.length > 0 && <Editor tempNoteText={tempNoteText} setTempNoteText={setTempNoteText} />}
         </Split>
       ) : (
         <div className="no-notes">
